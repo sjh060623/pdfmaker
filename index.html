@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link href="./style.css" rel="stylesheet" />
+    <title>Document</title>
+  </head>
+  <body>
+    <div class="down">다운로드</div>
+    <div id="dropBox">
+      <p>이미지를 Drag & Drop</p>
+      <form class="imgUploader">
+        <input
+          type="file"
+          id="imgUpload"
+          multiple
+          accept="image/*"
+          onchange="filesManager(this.files)"
+        />
+      </form>
+      <div id="gallery"></div>
+    </div>
+    <script
+      src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"
+      integrity="sha512-GsLlZN/3F2ErC5ifS5QtgpiJtWd43JWSuIgh7mbzZ8zBps+dvLusV+eNQATqgA/HdeKFVgA5v3S/cIrLF7QnIg=="
+      crossorigin="anonymous"
+      referrerpolicy="no-referrer"
+    ></script>
+    <script src="html2pdf.bundle.min.js"></script>
+    <script>
+      document.querySelector(".down").addEventListener("click", () =>
+        html2pdf()
+          .from(document.getElementById("gallery"))
+          .set({
+            pagebreak: { mode: "avoid-all", before: "#page2el" },
+            margin: 10,
+            filename: "완성본.pdf",
+            html2canvas: { scale: 1 },
+            jsPDF: {
+              orientation: "portrait",
+              unit: "mm",
+              format: "a4",
+              compressPDF: true,
+            },
+          })
+          .save()
+      );
+
+      let dropBox = document.getElementById("dropBox");
+
+      // modify all of the event types needed for the script so that the browser
+      // doesn't open the image in the browser tab (default behavior)
+      ["dragenter", "dragover", "dragleave", "drop"].forEach((evt) => {
+        dropBox.addEventListener(evt, prevDefault, false);
+      });
+      function prevDefault(e) {
+        e.preventDefault();
+        e.stopPropagation();
+      }
+
+      // remove and add the hover class, depending on whether something is being
+      // actively dragged over the box area
+      ["dragenter", "dragover"].forEach((evt) => {
+        dropBox.addEventListener(evt, hover, false);
+      });
+      ["dragleave", "drop"].forEach((evt) => {
+        dropBox.addEventListener(evt, unhover, false);
+      });
+      function hover(e) {
+        dropBox.classList.add("hover");
+      }
+      function unhover(e) {
+        dropBox.classList.remove("hover");
+      }
+
+      // the DataTransfer object holds the data being dragged. it's accessible
+      // from the dataTransfer property of drag events. the files property has
+      // a list of all the files being dragged. put it into the filesManager function
+      dropBox.addEventListener("drop", mngDrop, false);
+      function mngDrop(e) {
+        let dataTrans = e.dataTransfer;
+        let files = dataTrans.files;
+        filesManager(files);
+      }
+
+      // use FormData browser API to create a set of key/value pairs representing
+      // form fields and their values, to send using XMLHttpRequest.send() method.
+      // Uses the same format a form would use with multipart/form-data encoding
+      function upFile(file) {
+        //only allow images to be dropped
+        let imageType = /image.*/;
+        if (file.type.match(imageType)) {
+          let url = "HTTP/HTTPS URL TO SEND THE DATA TO";
+          // create a FormData object
+          let formData = new FormData();
+          // add a new value to an existing key inside a FormData object or add the
+          // key if it doesn't exist. the filesManager function will loop through
+          // each file and send it here to be added
+          formData.append("file", file);
+
+          // standard file upload fetch setup
+          fetch(url, {
+            method: "put",
+            body: formData,
+          })
+            .then((response) => response.json())
+            .then((result) => {
+              console.log("Success:", result);
+            })
+            .catch((error) => {
+              console.error("Error:", error);
+            });
+        } else {
+          console.error("Only images are allowed!", file);
+        }
+      }
+
+      // use the FileReader API to get the image data, create an img element, and add
+      // it to the gallery div. The API is asynchronous so onloadend is used to get the
+      // result of the API function
+      function previewFile(file) {
+        // only allow images to be dropped
+        let imageType = /image.*/;
+        if (file.type.match(imageType)) {
+          let fReader = new FileReader();
+          let gallery = document.getElementById("gallery");
+          // reads the contents of the specified Blob. the result attribute of this
+          // with hold a data: URL representing the file's data
+          fReader.readAsDataURL(file);
+          // handler for the loadend event, triggered when the reading operation is
+          // completed (whether success or failure)
+          fReader.onloadend = function () {
+            let wrap = document.createElement("div");
+            let img = document.createElement("img");
+            // set the img src attribute to the file's contents (from read operation)
+            img.src = fReader.result;
+            let imgCapt = document.createElement("p");
+            let removeBtn = document.createElement("h1");
+            removeBtn.innerText = "❌";
+            // the name prop of the file contains the file name, and the size prop
+            // the file size. convert bytes to KB for the file size
+            let fSize = file.size / 1000 + " KB";
+            gallery.appendChild(wrap).appendChild(img);
+            gallery.appendChild(wrap).appendChild(removeBtn);
+            gallery.appendChild(wrap).appendChild(imgCapt);
+            removeBtn.addEventListener("click", () => wrap.removeChild(img));
+            removeBtn.addEventListener(
+              "click",
+              () => (removeBtn.innerHTML = "")
+            );
+          };
+        } else {
+          console.error("Only images are allowed!", file);
+        }
+      }
+
+      function filesManager(files) {
+        // spread the files array from the DataTransfer.files property into a new
+        // files array here
+        files = [...files];
+        // send each element in the array to both the upFile and previewFile
+        // functions
+        files.forEach(upFile);
+        files.forEach(previewFile);
+      }
+    </script>
+    <style></style>
+  </body>
+</html>
